@@ -521,7 +521,7 @@ class ALDAPSession extends Thread implements ILDAPConstants
 			Utils.put(map, "supportedSASLMechanisms", "SIMPLE");
 		}
 		if(listAttributes.size() == 0 || listAttributes.contains("vendorName")) {
-			Utils.put(map, "vendorName", "ISED S.p.A.");
+			Utils.put(map, "vendorName", "org.dew");
 		}
 		if(listAttributes.size() == 0 || listAttributes.contains("vendorVersion")) {
 			Utils.put(map, "vendorVersion", LDAPServer.sVERSION);
