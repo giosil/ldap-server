@@ -16,6 +16,8 @@ base dn  = ou=users,dc=test
 user dn  = uid=admin,dc=test
 password = admin
 ```
+![Test on JXplorer](test.png)
+
 ## Build
 
 - `git clone https://github.com/giosil/ldap-server.git`

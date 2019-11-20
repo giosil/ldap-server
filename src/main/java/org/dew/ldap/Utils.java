@@ -131,6 +131,28 @@ class Utils
 	}
 	
 	public static
+	String getFilterCategory(String sFilter)
+	{
+		if(sFilter == null || sFilter.length() == 0) return "";
+		int begin = sFilter.indexOf("(objectCategory=");
+		if(begin < 0) return "";
+		int end = sFilter.indexOf(')', begin + 1);
+		if(end < 0) return "";
+		return sFilter.substring(begin + 16, end);
+	}
+	
+	public static
+	String getFilterValue(String sFilter, String sField)
+	{
+		if(sFilter == null || sFilter.length() == 0) return "";
+		int begin = sFilter.indexOf("(" + sField + "=");
+		if(begin < 0) return "";
+		int end = sFilter.indexOf(')', begin + 1);
+		if(end < 0) return "";
+		return sFilter.substring(begin + sField.length() + 2, end);
+	}
+	
+	public static
 	String getUniqueMemberUid(String sFilter)
 	{
 		String sUniqueMember = "uniquemember=uid=";
@@ -139,6 +161,51 @@ class Utils
 		if(iStartUid >= 0) {
 			iStartUid   = iStartUid + sUniqueMember.length();
 			int iEndUid = sFilter.indexOf(',', iStartUid);
+			String sUid = iEndUid > 0 ? sFilter.substring(iStartUid, iEndUid) : sFilter.substring(iStartUid);
+			return sUid;
+		}
+		return null;
+	}
+	
+	public static
+	String getMemberUid(String sFilter)
+	{
+		String sMember = "member=uid=";
+		String sFilterLC = sFilter.toLowerCase();
+		int iStartUid = sFilterLC.indexOf(sMember);
+		if(iStartUid >= 0) {
+			iStartUid   = iStartUid + sMember.length();
+			int iEndUid = sFilter.indexOf(',', iStartUid);
+			String sUid = iEndUid > 0 ? sFilter.substring(iStartUid, iEndUid) : sFilter.substring(iStartUid);
+			return sUid;
+		}
+		return null;
+	}
+	
+	public static
+	String getDistinguishedNameUid(String sFilter)
+	{
+		String sDN = "distinguishedname=uid=";
+		String sFilterLC = sFilter.toLowerCase();
+		int iStartUid = sFilterLC.indexOf(sDN);
+		if(iStartUid >= 0) {
+			iStartUid   = iStartUid + sDN.length();
+			int iEndUid = sFilter.indexOf(',', iStartUid);
+			String sUid = iEndUid > 0 ? sFilter.substring(iStartUid, iEndUid) : sFilter.substring(iStartUid);
+			return sUid;
+		}
+		return null;
+	}
+	
+	public static
+	String getUserPrincipalName(String sFilter)
+	{
+		String sUserPrin = "userprincipalname=";
+		String sFilterLC = sFilter.toLowerCase();
+		int iStartUid = sFilterLC.indexOf(sUserPrin);
+		if(iStartUid >= 0) {
+			iStartUid   = iStartUid + sUserPrin.length();
+			int iEndUid = sFilter.indexOf(')', iStartUid);
 			String sUid = iEndUid > 0 ? sFilter.substring(iStartUid, iEndUid) : sFilter.substring(iStartUid);
 			return sUid;
 		}

@@ -112,22 +112,34 @@ class DummyLDAPSession extends ALDAPSession
 		int iSizeLimit       = ldapMessage.getIntControl(2);
 		int iMsgId           = ldapMessage.getId();
 		String sFilter       = ldapMessage.getLastStringControl(1);
-		List<Object> listAttributes = ldapMessage.getLastListControl(0);
-		Utils.normalizeAttributes(listAttributes);
-		boolean boNoAttributes = Utils.isNoAttributes(listAttributes);
-		boolean boFindPerson   = Utils.findPerson(sFilter);
-		boolean boFindGroupOfUniqueNames = Utils.findGroupOfUniqueNames(sFilter);
+		List<Object> attribs = ldapMessage.getLastListControl(0);
+		Utils.normalizeAttributes(attribs);
+		
+		boolean boNoAttributes  = Utils.isNoAttributes(attribs);
+		boolean boFindPerson    = Utils.findPerson(sFilter);
+		boolean boFindGroupOfUN = Utils.findGroupOfUniqueNames(sFilter);
+		String  sFilterCategory = Utils.getFilterCategory(sFilter);
+		
 		List<String> listItems = null;
 		String sDomainLC       = _sDomain != null ? _sDomain.toLowerCase() : "";
 		
 		String sFiltroUtenti = null;
 		if(sFilter != null && sFilter.startsWith("(")) {
+			// ActiveDirectory
+			if(sFilter.startsWith("(&(objectcategory=person)(")) {
+				sFilter = sFilter.substring(25, sFilter.length()-1);
+				// Ambiguous Name Resolution
+				lastANRFilter = Utils.getFilterValue(sFilter, "anr");
+			}
 			sFiltroUtenti = Utils.buildExpression(mapFields, sFilter);
 		}
 		boolean boFiltroUtenti = sFiltroUtenti != null && sFiltroUtenti.length() > 0;
 		if(iSizeLimit < 4) iSizeLimit = 1000;
 		
-		if(sBaseObject.equalsIgnoreCase("dc=" + _sDomain)) {
+		if(sBaseObject.startsWith("cn=Deleted Objects")) {
+			BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
+		}
+		else if(sBaseObject.equalsIgnoreCase("dc=" + _sDomain)) {
 			if(iScope == 0) {
 				BER.sendSearchResult(os, iMsgId, sBaseObject, Utils.buildAttributes(sBaseObject, domainComponentClass));
 			}
@@ -140,15 +152,14 @@ class DummyLDAPSession extends ALDAPSession
 								BER.sendSearchResult(os, iMsgId, "uid=" + sItem + "," + sOU_UTENTI + ",dc=" + _sDomain, inetOrgPersonClass);
 							}
 							else {
-								BER.sendSearchResult(os, iMsgId, "uid=" + sItem + "," + sOU_UTENTI + ",dc=" + _sDomain, readUtente(sItem, _sDomain, listAttributes));
+								BER.sendSearchResult(os, iMsgId, "uid=" + sItem + "," + sOU_UTENTI + ",dc=" + _sDomain, readUtente(sItem, _sDomain, attribs));
 							}
 						}
 					}
 				}
-				else
-				if(boFindGroupOfUniqueNames) {
+				else if(boFindGroupOfUN) {
 					if(iScope == 2) {
-						// Bench� anche i ruoli, le abilitazioni e le strutture siano groupOfUniqueNamesClass
+						// Benche' anche i ruoli, le abilitazioni e le strutture siano groupOfUniqueNamesClass
 						// con tali criteri di ricerca si restituiscono soltanto i gruppi. 
 						listItems  = getGruppi(_sDomain, iSizeLimit);
 						for(String sItem : listItems) {
@@ -159,6 +170,37 @@ class DummyLDAPSession extends ALDAPSession
 								BER.sendSearchResult(os, iMsgId, "cn=" + sItem + "," + sOU_GRUPPI + ",dc=" + _sDomain, readGruppo(sItem, _sDomain, iSizeLimit));
 							}
 						}
+					}
+				}
+				else if(sFilterCategory != null && sFilterCategory.equalsIgnoreCase("organizationalUnit")) {
+					// ActiveDirectory
+					String sFilterNameOrg  = Utils.getFilterValue(sFilter, "Name");
+					if(iScope == 2 && sFilterNameOrg != null && sFilterNameOrg.equalsIgnoreCase("users")) {
+						BER.sendSearchResult(os, iMsgId, sOU_UTENTI    + ",dc=" + _sDomain, organizationalUnitCategory);
+						listItems = getUtenti(_sDomain, sFiltroUtenti, iSizeLimit);
+						for(String sItem : listItems) {
+							BER.sendSearchResult(os, iMsgId, "dn=" + sItem + "," + sOU_UTENTI + ",dc=" + _sDomain, readUtente(sItem, _sDomain, attribs));
+						}
+					}
+					else {
+						BER.sendSearchResult(os, iMsgId, sOU_UTENTI    + ",dc=" + _sDomain, organizationalUnitCategory);
+					}
+				}
+				else if(sFilterCategory != null && sFilterCategory.equalsIgnoreCase("User")) {
+					// ActiveDirectory
+					String sUid  = Utils.getDistinguishedNameUid(sFilter);
+					if(iScope == 2 && sUid != null && sUid.length() > 0) {
+						List<String> listRuoli = getRuoli(_sDomain, sUid, iSizeLimit);
+						for(String sRuolo : listRuoli) {
+							if(boNoAttributes) {
+								BER.sendSearchResult(os, iMsgId, "cn=" + sRuolo + "," + sOU_UTENTI + ",dc=" + _sDomain, groupOfUniqueNamesClass);
+							}
+							else {
+								String sUniqueMember = "uid=" + sUid + "," + sOU_UTENTI + ",dc=" + _sDomain;
+								BER.sendSearchResult(os, iMsgId, "cn=" + sRuolo + "," + sOU_UTENTI + ",dc=" + _sDomain, groupOfUniqueNames(sRuolo, sUniqueMember));
+							}
+						}
+						BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
 					}
 				}
 				else {
@@ -287,7 +329,7 @@ class DummyLDAPSession extends ALDAPSession
 				}
 				else {
 					// Lettura gruppi realm LDAP (i gruppi sono mappati con i ruoli)
-					if(boFindGroupOfUniqueNames) {
+					if(boFindGroupOfUN) {
 						List<String> listRuoli = getRuoli(_sDomain, iSizeLimit);
 						for(String sRuolo : listRuoli) {
 							if(boNoAttributes) {
@@ -302,6 +344,10 @@ class DummyLDAPSession extends ALDAPSession
 					}
 					else {
 						String sUid = Utils.getUniqueMemberUid(sFilter);
+						if(sUid == null || sUid.length() == 0) {
+							// ActiveDirectory
+							sUid = Utils.getMemberUid(sFilter);
+						}
 						if(sUid != null && sUid.length() > 0) {
 							List<String> listRuoli = getRuoli(_sDomain, "C.ID_CREDENZIALE='" + sUid.replace("'", "''") + "'", iSizeLimit);
 							for(String sRuolo : listRuoli) {
@@ -316,6 +362,18 @@ class DummyLDAPSession extends ALDAPSession
 							BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
 							return true;
 						}
+						else {
+							// ActiveDirectory
+							sUid = Utils.getDistinguishedNameUid(sFilter);
+							if(sUid == null || sUid.length() == 0) {
+								sUid = Utils.getUserPrincipalName(sFilter);
+							}
+							if(sUid != null && sUid.length() > 0) {
+								BER.sendSearchResult(os, iMsgId, "uid=" + sUid + "," + sOU_UTENTI + ",dc=" + _sDomain, readUtente(sUid, _sDomain, attribs));
+								BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
+								return true;
+							}
+						}
 					}
 					listItems = new ArrayList<String>();
 				}
@@ -324,7 +382,7 @@ class DummyLDAPSession extends ALDAPSession
 						BER.sendSearchResult(os, iMsgId, "uid=" + sItem + "," + sOU_UTENTI + ",dc=" + _sDomain, inetOrgPersonClass);
 					}
 					else {
-						BER.sendSearchResult(os, iMsgId, "uid=" + sItem + "," + sOU_UTENTI + ",dc=" + _sDomain, readUtente(sItem, _sDomain, listAttributes));
+						BER.sendSearchResult(os, iMsgId, "uid=" + sItem + "," + sOU_UTENTI + ",dc=" + _sDomain, readUtente(sItem, _sDomain, attribs));
 					}
 				}
 			}
@@ -366,7 +424,7 @@ class DummyLDAPSession extends ALDAPSession
 					}
 				}
 				else {
-					BER.sendSearchResult(os, iMsgId, "uid=" + Utils.getFirstName(sBaseObject) + "," + sOU_UTENTI + ",dc=" + _sDomain, readUtente(Utils.getFirstName(sBaseObject), _sDomain, listAttributes));
+					BER.sendSearchResult(os, iMsgId, "uid=" + Utils.getFirstName(sBaseObject) + "," + sOU_UTENTI + ",dc=" + _sDomain, readUtente(Utils.getFirstName(sBaseObject), _sDomain, attribs));
 				}
 			}
 		}
@@ -533,7 +591,19 @@ class DummyLDAPSession extends ALDAPSession
 	List<String> getUtenti(String sIdServizio, String sFiltroUtenti, int iSizeLimit)
 	{
 		List<String> listResult = new ArrayList<String>();
+		
 		String sIdCredenziale = getIdCredenziale(sFiltroUtenti);
+		
+		if(sFiltroUtenti != null && sFiltroUtenti.length() > 0) {
+			sIdCredenziale = getIdCredenziale(sFiltroUtenti);
+		}
+		else if(lastANRFilter != null && lastANRFilter.length() > 0) {
+			// Active Directory
+			// Ambiguous Name Resolution
+			sIdCredenziale = lastANRFilter;
+			lastANRFilter  = null;
+		}
+		
 		if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("bianchi")) {
 			listResult.add("bianchi");
 		}
@@ -554,6 +624,7 @@ class DummyLDAPSession extends ALDAPSession
 		if(listResult != null && listResult.size() > 0) {
 			lastUserFound = listResult.get(0);
 		}
+		
 		return listResult;
 	}
 	
@@ -695,21 +766,35 @@ class DummyLDAPSession extends ALDAPSession
 	Map<String,List<String>> readBianchi(String sIdCredenziale, String sIdServizio, List<Object> listAttributes)
 	{
 		Map<String,List<String>> map = new HashMap<String,List<String>>(inetOrgPersonClass);
-		Utils.checkPut(listAttributes, map, "uid", "bianchi");
-		Utils.checkPut(listAttributes, map, "employeeNumber", "1");
-		Utils.checkPut(listAttributes, map, "ou", "test");
-		Utils.checkPut(listAttributes, map, "description", "ANTONIO BIANCHI");
-		Utils.checkPut(listAttributes, map, "cn", "ANTONIO BIANCHI");
-		Utils.checkPut(listAttributes, map, "displayName", "ANTONIO BIANCHI");
-		Utils.checkPut(listAttributes, map, "sn", "BIANCHI");
-		Utils.checkPut(listAttributes, map, "givenName", "ANTONIO");
-		Utils.checkPut(listAttributes, map, "birthday", "19750815");
-		Utils.checkPut(listAttributes, map, "sex", "M");
-		Utils.checkPut(listAttributes, map, "telephoneNumber", "06-3786721");
-		Utils.checkPut(listAttributes, map, "mobile", "349-33333333");
-		Utils.checkPut(listAttributes, map, "title", "DOTT");
-		Utils.checkPut(listAttributes, map, "mail", "bianchi@test.com");
-		Utils.checkPut(listAttributes, map, "userPassword", Utils.getDigestSHA("bianchi"));
+		
+		// ActiveDirectory
+		Utils.put(map, "objectClass",       "extensibleObject",  "inetOrgPerson", "organizationalPerson", "person", "top");
+		Utils.put(map, "objectCategory",    "person");
+		Utils.checkPut(listAttributes, map, "distinguishedName", "uid=bianchi," + sOU_UTENTI + ",dc=" + sIdServizio);
+		Utils.checkPut(listAttributes, map, "objectSid",         "1");
+		Utils.checkPut(listAttributes, map, "objectSID",         "1");
+		Utils.checkPut(listAttributes, map, "userPrincipalName", "bianchi");
+		Utils.checkPut(listAttributes, map, "whenCreated",       "20191119");
+		Utils.checkPut(listAttributes, map, "isDeleted",         "false");
+		Utils.checkPut(listAttributes, map, "pwdLastSet",        "20191119");
+		Utils.checkPut(listAttributes, map, "employeeID",        "1");
+		// LDAP attributes
+		Utils.checkPut(listAttributes, map, "uid",               "bianchi");
+		Utils.checkPut(listAttributes, map, "employeeNumber",    "1");
+		Utils.checkPut(listAttributes, map, "ou",                "test");
+		Utils.checkPut(listAttributes, map, "description",       "ANTONIO BIANCHI");
+		Utils.checkPut(listAttributes, map, "cn",                "ANTONIO BIANCHI");
+		Utils.checkPut(listAttributes, map, "displayName",       "ANTONIO BIANCHI");
+		Utils.checkPut(listAttributes, map, "sn",                "BIANCHI");
+		Utils.checkPut(listAttributes, map, "givenName",         "ANTONIO");
+		Utils.checkPut(listAttributes, map, "birthday",          "19750815");
+		Utils.checkPut(listAttributes, map, "sex",               "M");
+		Utils.checkPut(listAttributes, map, "telephoneNumber",   "06-0000001");
+		Utils.checkPut(listAttributes, map, "mobile",            "349-0000001");
+		Utils.checkPut(listAttributes, map, "title",             "SIG");
+		Utils.checkPut(listAttributes, map, "mail",              "bianchi@test.com");
+		Utils.checkPut(listAttributes, map, "userPassword",      Utils.getDigestSHA("bianchi"));
+		
 		if(listAttributes == null || listAttributes.size() == 0 || listAttributes.contains("roleMembership")) {
 			List<String> listRoleMembership = new ArrayList<String>();
 			listRoleMembership.add("cn=admin," + sOU_RUOLI + ",dc=" + sIdServizio);
@@ -740,21 +825,35 @@ class DummyLDAPSession extends ALDAPSession
 	Map<String,List<String>> readRossi(String sIdCredenziale, String sIdServizio, List<Object> listAttributes)
 	{
 		Map<String,List<String>> map = new HashMap<String,List<String>>(inetOrgPersonClass);
-		Utils.checkPut(listAttributes, map, "uid", "rossi");
-		Utils.checkPut(listAttributes, map, "employeeNumber", "2");
-		Utils.checkPut(listAttributes, map, "ou", "test");
-		Utils.checkPut(listAttributes, map, "description", "MARIO ROSSI");
-		Utils.checkPut(listAttributes, map, "cn", "MARIO ROSSI");
-		Utils.checkPut(listAttributes, map, "displayName", "MARIO ROSSI");
-		Utils.checkPut(listAttributes, map, "sn", "ROSSI");
-		Utils.checkPut(listAttributes, map, "givenName", "MARIO");
-		Utils.checkPut(listAttributes, map, "birthday", "19741119");
-		Utils.checkPut(listAttributes, map, "sex", "M");
-		Utils.checkPut(listAttributes, map, "telephoneNumber", "06-123456");
-		Utils.checkPut(listAttributes, map, "mobile", "349-11111111");
-		Utils.checkPut(listAttributes, map, "title", "ING");
-		Utils.checkPut(listAttributes, map, "mail", "rossi@test.com");
-		Utils.checkPut(listAttributes, map, "userPassword", Utils.getDigestSHA("rossi"));
+		
+		// ActiveDirectory
+		Utils.put(map, "objectClass",       "extensibleObject",  "inetOrgPerson", "organizationalPerson", "person", "top");
+		Utils.put(map, "objectCategory",    "person");
+		Utils.checkPut(listAttributes, map, "distinguishedName", "uid=rossi," + sOU_UTENTI + ",dc=" + sIdServizio);
+		Utils.checkPut(listAttributes, map, "objectSid",         "2");
+		Utils.checkPut(listAttributes, map, "objectSID",         "2");
+		Utils.checkPut(listAttributes, map, "userPrincipalName", "rossi");
+		Utils.checkPut(listAttributes, map, "whenCreated",       "20191119");
+		Utils.checkPut(listAttributes, map, "isDeleted",         "false");
+		Utils.checkPut(listAttributes, map, "pwdLastSet",        "20191119");
+		Utils.checkPut(listAttributes, map, "employeeID",        "2");
+		// LDAP attributes
+		Utils.checkPut(listAttributes, map, "uid",               "rossi");
+		Utils.checkPut(listAttributes, map, "employeeNumber",    "2");
+		Utils.checkPut(listAttributes, map, "ou",                "test");
+		Utils.checkPut(listAttributes, map, "description",       "MARIO ROSSI");
+		Utils.checkPut(listAttributes, map, "cn",                "MARIO ROSSI");
+		Utils.checkPut(listAttributes, map, "displayName",       "MARIO ROSSI");
+		Utils.checkPut(listAttributes, map, "sn",                "ROSSI");
+		Utils.checkPut(listAttributes, map, "givenName",         "MARIO");
+		Utils.checkPut(listAttributes, map, "birthday",          "19741119");
+		Utils.checkPut(listAttributes, map, "sex",               "M");
+		Utils.checkPut(listAttributes, map, "telephoneNumber",   "06-0000002");
+		Utils.checkPut(listAttributes, map, "mobile",            "349-0000002");
+		Utils.checkPut(listAttributes, map, "title",             "SIG");
+		Utils.checkPut(listAttributes, map, "mail",              "rossi@test.com");
+		Utils.checkPut(listAttributes, map, "userPassword",      Utils.getDigestSHA("rossi"));
+		
 		if(listAttributes == null || listAttributes.size() == 0 || listAttributes.contains("roleMembership")) {
 			List<String> listRoleMembership = new ArrayList<String>();
 			listRoleMembership.add("cn=oper," + sOU_RUOLI + ",dc=" + sIdServizio);
@@ -780,26 +879,40 @@ class DummyLDAPSession extends ALDAPSession
 		}
 		return map;
 	}
-
+	
 	private static
 	Map<String,List<String>> readVerdi(String sIdCredenziale, String sIdServizio, List<Object> listAttributes)
 	{
 		Map<String,List<String>> map = new HashMap<String,List<String>>(inetOrgPersonClass);
-		Utils.checkPut(listAttributes, map, "uid", "verdi");
-		Utils.checkPut(listAttributes, map, "employeeNumber", "3");
-		Utils.checkPut(listAttributes, map, "ou", "test");
-		Utils.checkPut(listAttributes, map, "description", "GIUSEPPE VERDI");
-		Utils.checkPut(listAttributes, map, "cn", "GIUSEPPE VERDI");
-		Utils.checkPut(listAttributes, map, "displayName", "GIUSEPPE VERDI");
-		Utils.checkPut(listAttributes, map, "sn", "VERDI");
-		Utils.checkPut(listAttributes, map, "givenName", "GIUSEPPE");
-		Utils.checkPut(listAttributes, map, "birthday", "19780503");
-		Utils.checkPut(listAttributes, map, "sex", "M");
-		Utils.checkPut(listAttributes, map, "telephoneNumber", "06-3456782");
-		Utils.checkPut(listAttributes, map, "mobile", "349-2222222");
-		Utils.checkPut(listAttributes, map, "title", "SIG");
-		Utils.checkPut(listAttributes, map, "mail", "verdi@test.com");
-		Utils.checkPut(listAttributes, map, "userPassword", Utils.getDigestSHA("verdi"));
+		
+		// ActiveDirectory
+		Utils.put(map, "objectClass",       "extensibleObject",  "inetOrgPerson", "organizationalPerson", "person", "top");
+		Utils.put(map, "objectCategory",    "person");
+		Utils.checkPut(listAttributes, map, "distinguishedName", "uid=verdi," + sOU_UTENTI + ",dc=" + sIdServizio);
+		Utils.checkPut(listAttributes, map, "objectSid",         "3");
+		Utils.checkPut(listAttributes, map, "objectSID",         "3");
+		Utils.checkPut(listAttributes, map, "userPrincipalName", "verdi");
+		Utils.checkPut(listAttributes, map, "whenCreated",       "20191119");
+		Utils.checkPut(listAttributes, map, "isDeleted",         "false");
+		Utils.checkPut(listAttributes, map, "pwdLastSet",        "20191119");
+		Utils.checkPut(listAttributes, map, "employeeID",        "3");
+		// LDAP attributes
+		Utils.checkPut(listAttributes, map, "uid",               "verdi");
+		Utils.checkPut(listAttributes, map, "employeeNumber",    "3");
+		Utils.checkPut(listAttributes, map, "ou",                "test");
+		Utils.checkPut(listAttributes, map, "description",       "GIUSEPPE VERDI");
+		Utils.checkPut(listAttributes, map, "cn",                "GIUSEPPE VERDI");
+		Utils.checkPut(listAttributes, map, "displayName",       "GIUSEPPE VERDI");
+		Utils.checkPut(listAttributes, map, "sn",                "VERDI");
+		Utils.checkPut(listAttributes, map, "givenName",         "GIUSEPPE");
+		Utils.checkPut(listAttributes, map, "birthday",          "19780503");
+		Utils.checkPut(listAttributes, map, "sex",               "M");
+		Utils.checkPut(listAttributes, map, "telephoneNumber",   "06-0000003");
+		Utils.checkPut(listAttributes, map, "mobile",            "349-0000003");
+		Utils.checkPut(listAttributes, map, "title",             "SIG");
+		Utils.checkPut(listAttributes, map, "mail",              "verdi@test.com");
+		Utils.checkPut(listAttributes, map, "userPassword",      Utils.getDigestSHA("verdi"));
+		
 		if(listAttributes == null || listAttributes.size() == 0 || listAttributes.contains("roleMembership")) {
 			List<String> listRoleMembership = new ArrayList<String>();
 			listRoleMembership.add("cn=guest," + sOU_RUOLI + ",dc=" + sIdServizio);

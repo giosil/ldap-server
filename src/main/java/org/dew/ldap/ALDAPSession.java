@@ -10,6 +10,13 @@ class ALDAPSession extends Thread implements ILDAPConstants
 {
 	private static Logger oLogger = Logger.getLogger(ALDAPSession.class.getName());
 	
+	// ActiveDirectory
+	protected static String defaultNamingContext = LDAPServerConfig.getProperty(LDAPServerConfig.sCONF_DEF_NAME_CTX);
+	// (ANR = Ambiguous Name Resolution)
+	protected static String lastANRFilter;
+	
+	public static final String sOU_UTENTI = "ou=users";
+	
 	private LDAPServer _ldapServer;
 	
 	protected Socket _socket;
@@ -20,6 +27,9 @@ class ALDAPSession extends Thread implements ILDAPConstants
 	protected boolean _boLoggedIn  = false;
 	protected boolean _boLDAPAdminLoggedIn = false;
 	protected boolean _boAnonymous = false;
+	
+	protected int _lastProtocolOp = 0;
+	protected int _lastMessageId  = 0;
 	
 	protected static Map<String,List<String>> organizationalUnitClass = new HashMap<String,List<String>>();
 	protected static Map<String,List<String>> domainComponentClass    = new HashMap<String,List<String>>();
@@ -32,6 +42,14 @@ class ALDAPSession extends Thread implements ILDAPConstants
 		Utils.put(subschemaClass,          "objectClass", "subentry", "subschema", "top");
 		Utils.put(groupOfUniqueNamesClass, "objectClass", "groupOfUniqueNames",    "top");
 		Utils.put(inetOrgPersonClass,      "objectClass", "extensibleObject", "inetOrgPerson", "organizationalPerson", "person", "top");
+	}
+	
+	// ActiveDirectory
+	protected static Map<String,List<String>> organizationalUnitCategory = new HashMap<String,List<String>>();
+	protected static Map<String,List<String>> person                     = new HashMap<String,List<String>>();
+	static {
+		Utils.put(organizationalUnitCategory, "objectCategory", "organizationalUnit");
+		Utils.put(person,                     "objectCategory", "person");
 	}
 	
 	public 
@@ -49,6 +67,18 @@ class ALDAPSession extends Thread implements ILDAPConstants
 	void setSocket(Socket socket)
 	{
 		this._socket = socket;
+	}
+	
+	public
+	int getLastProtocolOp() 
+	{
+		return _lastProtocolOp;
+	}
+	
+	public
+	int getLastMessageId() 
+	{
+		return _lastMessageId;
 	}
 	
 	public
@@ -98,6 +128,10 @@ class ALDAPSession extends Thread implements ILDAPConstants
 		if(iProtocolOp == LDAP_REQ_BIND) {
 			return bind(ldapMessage, os);
 		}
+		
+		_lastProtocolOp = iProtocolOp;
+		_lastMessageId  = ldapMessage.getId();
+		
 		if(_boAnonymous) {
 			if(iProtocolOp == LDAP_REQ_SEARCH) {
 				if(!defaultSearch(ldapMessage, os)) {
@@ -152,11 +186,12 @@ class ALDAPSession extends Thread implements ILDAPConstants
 		return false;
 	}
 	
-	protected 
+	protected
 	boolean bind(LDAPMessage ldapMessage, OutputStream os)
 		throws Exception
 	{
 		_boLoggedIn = false;
+		
 		String sName = ldapMessage.getLastStringControl(1);
 		String sPass = ldapMessage.getLastStringControl(0);
 		if(sPass == null || sPass.length() == 0) {
@@ -170,22 +205,27 @@ class ALDAPSession extends Thread implements ILDAPConstants
 		}
 		if(_boLDAPAdminLoggedIn) {
 			if("top".equals(sName)) {
-				sName = "uid=?,ou=users,dc=" + _sDomain;
+				sName = "uid=?," + sOU_UTENTI + ",dc=" + _sDomain;
 			}
-		}		
-		int iIndexDomain = sName.indexOf(",dc=");
-		if(iIndexDomain <= 0) {
-			BER.sendResult(os, ldapMessage.getId(), LDAP_RES_BIND, LDAP_INVALID_CREDENTIALS);
-			return false;
 		}
-		if(!sName.startsWith("uid=")) {
-			BER.sendResult(os, ldapMessage.getId(), LDAP_RES_BIND, LDAP_INVALID_CREDENTIALS);
-			return false;
+		if(sName.startsWith("uid=")) {
+			int iIndexDomain = sName.indexOf(",dc=");
+			if(iIndexDomain <= 0) {
+				BER.sendResult(os, ldapMessage.getId(), LDAP_RES_BIND, LDAP_INVALID_CREDENTIALS);
+				return false;
+			}
+			_sLDAPUserId = sName.substring(4, iIndexDomain).trim();
+			_sDomain = sName.substring(iIndexDomain + 4).trim();
 		}
-		_sLDAPUserId = sName.substring(4, iIndexDomain).trim();
-		_sDomain = sName.substring(iIndexDomain + 4).trim();
+		else {
+			// ActiveDirectory
+			_sLDAPUserId = sName + "," + sOU_UTENTI;
+			if(defaultNamingContext != null && defaultNamingContext.length() > 0) {
+				_sDomain = defaultNamingContext;
+			}
+		}
 		
-		if(_sDomain.equals("ldapserver")) {
+		if(_sDomain != null && _sDomain.equals("ldapserver")) {
 			String sUserStop = LDAPServerConfig.getProperty(LDAPServerConfig.sCONF_STOP_USER, "stop");
 			String sPassStop = LDAPServerConfig.getProperty(LDAPServerConfig.sCONF_STOP_PASS, "pwstop");
 			if(_sLDAPUserId.equals(sUserStop) && sPass.equals(sPassStop)) {
@@ -197,7 +237,7 @@ class ALDAPSession extends Thread implements ILDAPConstants
 		
 		int iSep = _sLDAPUserId.indexOf(',');
 		if(iSep < 0) {
-			// Login da parte dell'amministratore del server LDAP
+			// Admin server LDAP login
 			if(loginLDAPAdmin(_sLDAPUserId, sPass)) {
 				_boLoggedIn = true;
 				_boLDAPAdminLoggedIn = true;
@@ -213,7 +253,7 @@ class ALDAPSession extends Thread implements ILDAPConstants
 			}
 		}
 		else {
-			// Login da parte di un utente
+			// User login
 			String sUserId = _sLDAPUserId.substring(0, iSep);
 			if(login(sUserId, sPass)) {
 				_boLoggedIn = true;
@@ -459,6 +499,12 @@ class ALDAPSession extends Thread implements ILDAPConstants
 		if(listAttributes.size() == 0 || listAttributes.contains("namingContexts")) {
 			Utils.put(map, "namingContexts", getNamingContexts());
 		}
+		if(listAttributes.size() == 0 || listAttributes.contains("defaultNamingContext")) {
+			// ActiveDirectory
+			if(defaultNamingContext != null) {
+				Utils.put(map, "defaultNamingContext", "dc=" + defaultNamingContext);
+			}
+		}
 		if(listAttributes.size() == 0 || listAttributes.contains("supportedExtension")) {
 			Utils.put(map, "supportedExtension", "2.16.840.1.113730.3.5.7");
 		}
@@ -557,6 +603,24 @@ class ALDAPSession extends Thread implements ILDAPConstants
 	{
 		Map<String,List<String>> map = new HashMap<String,List<String>>(groupOfUniqueNamesClass);
 		Utils.put(map, "cn", sName);
+		if(sUniqueMember != null && sUniqueMember.length() > 0) {
+			List<String> listUniqueMember = new ArrayList<String>(1);
+			listUniqueMember.add(sUniqueMember);
+			map.put("uniqueMember", listUniqueMember);
+		}
+		return map;
+	}
+	
+	protected static
+	Map<String,List<String>> groupOfUniqueNames(String sName, String sUniqueMember, List<Object> listAttributes)
+	{
+		Map<String,List<String>> map = new HashMap<String,List<String>>(groupOfUniqueNamesClass);
+		Utils.put(map, "cn", sName);
+		// ActiveDirectory
+		Utils.checkPut(listAttributes, map, "member",            sUniqueMember);
+		Utils.checkPut(listAttributes, map, "dn",                sUniqueMember);
+		Utils.checkPut(listAttributes, map, "distinguishedName", sUniqueMember);
+		Utils.checkPut(listAttributes, map, "objectSid",         sName);
 		if(sUniqueMember != null && sUniqueMember.length() > 0) {
 			List<String> listUniqueMember = new ArrayList<String>(1);
 			listUniqueMember.add(sUniqueMember);

@@ -15,12 +15,13 @@ class LogFormatter extends Formatter
 	
 	public synchronized String format(LogRecord record) {
 		currentDateTime.setTimeInMillis(record.getMillis());
-		int iYear    = currentDateTime.get(java.util.Calendar.YEAR);
-		int iMonth   = currentDateTime.get(java.util.Calendar.MONTH) + 1;
-		int iDay     = currentDateTime.get(java.util.Calendar.DAY_OF_MONTH);
-		int iHour    = currentDateTime.get(Calendar.HOUR_OF_DAY);
-		int iMinute  = currentDateTime.get(Calendar.MINUTE);
-		int iSecond  = currentDateTime.get(Calendar.SECOND);
+		
+		int iYear      = currentDateTime.get(java.util.Calendar.YEAR);
+		int iMonth     = currentDateTime.get(java.util.Calendar.MONTH) + 1;
+		int iDay       = currentDateTime.get(java.util.Calendar.DAY_OF_MONTH);
+		int iHour      = currentDateTime.get(Calendar.HOUR_OF_DAY);
+		int iMinute    = currentDateTime.get(Calendar.MINUTE);
+		int iSecond    = currentDateTime.get(Calendar.SECOND);
 		String sMonth  = iMonth  < 10 ? "0" + iMonth  : String.valueOf(iMonth);
 		String sDay    = iDay    < 10 ? "0" + iDay    : String.valueOf(iDay);
 		String sHour   = iHour   < 10 ? "0" + iHour   : String.valueOf(iHour);
@@ -32,9 +33,7 @@ class LogFormatter extends Formatter
 		
 		String message = formatMessage(record);
 		sb.append(sCurrentDateTime);
-		sb.append(" ");
-		sb.append("[" + record.getThreadID() + "]");
-		sb.append(" ");
+		sb.append(" [" + record.getThreadID() + "] ");
 		sb.append(record.getLevel().getLocalizedName());
 		sb.append(": ");
 		sb.append(message);
@@ -42,7 +41,7 @@ class LogFormatter extends Formatter
 		if (record.getThrown() != null) {
 			try {
 				StringWriter sw = new StringWriter();
-				PrintWriter pw = new PrintWriter(sw);
+				PrintWriter  pw = new PrintWriter(sw);
 				record.getThrown().printStackTrace(pw);
 				pw.close();
 				sb.append(sw.toString());
