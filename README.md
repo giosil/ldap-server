@@ -1,6 +1,6 @@
 # LDAP Server
 
-A simple programmable LDAP server.
+A lightweight programmable LDAP server.
 
 ## Start Server
 
