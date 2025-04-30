@@ -139,8 +139,7 @@ class ALDAPSession extends Thread implements ILDAPConstants
           return true;
         }
       }
-      else
-      if(iProtocolOp == LDAP_REQ_UNBIND) {
+      else if(iProtocolOp == LDAP_REQ_UNBIND) {
         return false;
       }
     }
@@ -150,8 +149,7 @@ class ALDAPSession extends Thread implements ILDAPConstants
           return true;
         }
       }
-      else
-      if(iProtocolOp == LDAP_REQ_ABANDON) {
+      else if(iProtocolOp == LDAP_REQ_ABANDON) {
         return abandon(ldapMessage, os);
       }
       BER.sendResult(os, ldapMessage.getId(), LDAP_RES_BIND, LDAP_OPERATIONS_ERROR);
@@ -378,8 +376,7 @@ class ALDAPSession extends Thread implements ILDAPConstants
       BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
       return true;
     }
-    else
-    if(sBaseObject.equalsIgnoreCase("cn=schema")) {
+    else if(sBaseObject.equalsIgnoreCase("cn=schema")) {
       BER.sendResourceContent(os, iMsgId, "schema.dat");
       BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
       return true;
@@ -413,13 +410,11 @@ class ALDAPSession extends Thread implements ILDAPConstants
       BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
       return true;
     }
-    else
-    if(sBaseObject.equalsIgnoreCase("cn=schema")) {
+    else if(sBaseObject.equalsIgnoreCase("cn=schema")) {
       if(iScope == 0) {
         BER.sendResourceContent(os, iMsgId, "schema.dat");
       }
-      else
-      if(sFilter.toLowerCase().indexOf("objectclass=subschema") >= 0) {
+      else if(sFilter.toLowerCase().indexOf("objectclass=subschema") >= 0) {
         BER.sendSearchResult(os, iMsgId, "cn=schema", getSchemaAttributes(subschemaClass, listAttributes));
       }
       else {
@@ -428,31 +423,26 @@ class ALDAPSession extends Thread implements ILDAPConstants
       BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
       return true;
     }
-    else
-    if(sBaseObjectLC.endsWith("cn=monitor")) {
+    else if(sBaseObjectLC.endsWith("cn=monitor")) {
       if(sBaseObject.equalsIgnoreCase("cn=monitor")) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, getMonitorAttributes(listAttributes));
       }
-      else
-      if(sBaseObject.equalsIgnoreCase("cn=start,cn=time,cn=monitor")) {
+      else if(sBaseObject.equalsIgnoreCase("cn=start,cn=time,cn=monitor")) {
         Map<String,List<String>> map = new HashMap<String,List<String>>();
         Utils.put(map, "objectClass",   "monitoredObject", "top");
         Utils.put(map, "monitorTimestamp", LDAPServer.sSTART_TIMESTAMP);
         BER.sendSearchResult(os, iMsgId, sBaseObject, map);
       }
-      else
-      if(sBaseObject.equalsIgnoreCase("cn=current,cn=time,cn=monitor")) {
+      else if(sBaseObject.equalsIgnoreCase("cn=current,cn=time,cn=monitor")) {
         Map<String,List<String>> map = new HashMap<String,List<String>>();
         Utils.put(map, "objectClass",   "monitoredObject", "top");
         Utils.put(map, "monitorTimestamp", Utils.dateTimeToTimeStamp(new java.util.Date()));
         BER.sendSearchResult(os, iMsgId, sBaseObject, map);
       }
-      else
-      if(sBaseObject.equalsIgnoreCase("cn=sessions,cn=monitor")) {
+      else if(sBaseObject.equalsIgnoreCase("cn=sessions,cn=monitor")) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, getMonitorCounterAttributes(_ldapServer.countSessions()));
       }
-      else
-      if(sBaseObject.equalsIgnoreCase("cn=threads,cn=monitor")) {
+      else if(sBaseObject.equalsIgnoreCase("cn=threads,cn=monitor")) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, getMonitorCounterAttributes(Thread.getAllStackTraces().size()));
       }
       else {
@@ -466,15 +456,13 @@ class ALDAPSession extends Thread implements ILDAPConstants
       BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
       return true;
     }
-    else
-    if(sFirstAttribute.equals("+")) {
+    else if(sFirstAttribute.equals("+")) {
       // Attributi operazionali non gestiti
       BER.sendSearchResult(os, iMsgId, sBaseObject);
       BER.sendResult(os, iMsgId, LDAP_RES_SEARCH_RESULT, LDAP_SUCCESS);
       return true;
     }
-    else
-    if(sBaseObject.equals("uid=" + _sLDAPUserId + ",dc=" + _sDomain)) {
+    else if(sBaseObject.equals("uid=" + _sLDAPUserId + ",dc=" + _sDomain)) {
       if(iScope == 0) {
         if(boNoAttributes) {
           BER.sendSearchResult(os, iMsgId, sBaseObject, inetOrgPersonClass);

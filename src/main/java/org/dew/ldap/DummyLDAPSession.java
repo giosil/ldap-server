@@ -1,8 +1,12 @@
 package org.dew.ldap;
 
 import java.io.OutputStream;
-import java.util.*;
-import java.util.logging.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Logger;
 
 public 
 class DummyLDAPSession extends ALDAPSession 
@@ -214,8 +218,7 @@ class DummyLDAPSession extends ALDAPSession
         }
       }
     }
-    else
-    if(sBaseObject.equalsIgnoreCase(sOU_RUOLI + ",dc=" + _sDomain)) {
+    else if(sBaseObject.equalsIgnoreCase(sOU_RUOLI + ",dc=" + _sDomain)) {
       if(iScope == 0) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, Utils.buildAttributes(sOU_RUOLI, organizationalUnitClass));
       }
@@ -236,8 +239,7 @@ class DummyLDAPSession extends ALDAPSession
         }
       }
     }
-    else
-    if(sBaseObject.equalsIgnoreCase(sOU_ABILITAZ + ",dc=" + _sDomain)) {
+    else if(sBaseObject.equalsIgnoreCase(sOU_ABILITAZ + ",dc=" + _sDomain)) {
       if(iScope == 0) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, Utils.buildAttributes(sOU_ABILITAZ, organizationalUnitClass));
       }
@@ -258,8 +260,7 @@ class DummyLDAPSession extends ALDAPSession
         }
       }
     }
-    else
-    if(sBaseObject.equalsIgnoreCase(sOU_GRUPPI + ",dc=" + _sDomain)) {
+    else if(sBaseObject.equalsIgnoreCase(sOU_GRUPPI + ",dc=" + _sDomain)) {
       if(iScope == 0) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, Utils.buildAttributes(sOU_GRUPPI, organizationalUnitClass));
       }
@@ -280,8 +281,7 @@ class DummyLDAPSession extends ALDAPSession
         }
       }
     }
-    else
-    if(sBaseObject.equalsIgnoreCase(sOU_STRUTTURE + ",dc=" + _sDomain)) {
+    else if(sBaseObject.equalsIgnoreCase(sOU_STRUTTURE + ",dc=" + _sDomain)) {
       if(iScope == 0) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, Utils.buildAttributes(sOU_STRUTTURE, organizationalUnitClass));
       }
@@ -302,8 +302,7 @@ class DummyLDAPSession extends ALDAPSession
         }
       }
     }
-    else
-    if(sBaseObject.equalsIgnoreCase(sOU_CONFIG + ",dc=" + _sDomain)) {
+    else if(sBaseObject.equalsIgnoreCase(sOU_CONFIG + ",dc=" + _sDomain)) {
       if(iScope == 0) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, Utils.buildAttributes(sOU_CONFIG, organizationalUnitClass));
       }
@@ -314,8 +313,7 @@ class DummyLDAPSession extends ALDAPSession
         }
       }
     }
-    else
-    if(sBaseObject.equalsIgnoreCase(sOU_UTENTI + ",dc=" + _sDomain)) {
+    else if(sBaseObject.equalsIgnoreCase(sOU_UTENTI + ",dc=" + _sDomain)) {
       if(iScope == 0) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, Utils.buildAttributes(sOU_UTENTI, organizationalUnitClass));
       }
@@ -387,20 +385,16 @@ class DummyLDAPSession extends ALDAPSession
         }
       }
     }
-    else
-    if(sBaseObjectLC.endsWith("," + sOU_RUOLI + ",dc=" + sDomainLC)) {
+    else if(sBaseObjectLC.endsWith("," + sOU_RUOLI + ",dc=" + sDomainLC)) {
       if(iScope == 0) BER.sendSearchResult(os, iMsgId, sBaseObject, readRuolo(Utils.getFirstName(sBaseObject), _sDomain, iSizeLimit));
     }
-    else
-    if(sBaseObjectLC.endsWith("," + sOU_ABILITAZ + ",dc=" + sDomainLC)) {
+    else if(sBaseObjectLC.endsWith("," + sOU_ABILITAZ + ",dc=" + sDomainLC)) {
       if(iScope == 0) BER.sendSearchResult(os, iMsgId, sBaseObject, readAbilitazione(Utils.getFirstName(sBaseObject), _sDomain, iSizeLimit));
     }
-    else
-    if(sBaseObjectLC.endsWith("," + sOU_GRUPPI + ",dc=" + sDomainLC)) {
+    else if(sBaseObjectLC.endsWith("," + sOU_GRUPPI + ",dc=" + sDomainLC)) {
       if(iScope == 0) BER.sendSearchResult(os, iMsgId, sBaseObject, readGruppo(Utils.getFirstName(sBaseObject), _sDomain, iSizeLimit));
     }
-    else
-    if(sBaseObjectLC.endsWith("," + sOU_STRUTTURE + ",dc=" + sDomainLC)) {
+    else if(sBaseObjectLC.endsWith("," + sOU_STRUTTURE + ",dc=" + sDomainLC)) {
       if(iScope == 0) {
         BER.sendSearchResult(os, iMsgId, sBaseObject, readStruttura(Utils.getFirstName(sBaseObject), _sDomain, iSizeLimit));
       }
@@ -411,12 +405,10 @@ class DummyLDAPSession extends ALDAPSession
         }
       }
     }
-    else
-    if(sBaseObjectLC.endsWith("," + sOU_CONFIG + "," + "dc=" + sDomainLC)) {
+    else if(sBaseObjectLC.endsWith("," + sOU_CONFIG + "," + "dc=" + sDomainLC)) {
       if(iScope == 0) BER.sendSearchResult(os, iMsgId, sBaseObject, readConfigurazione(Utils.getFirstName(sBaseObject), _sDomain));
     }
-    else
-    if(sBaseObjectLC.endsWith("," + sOU_UTENTI + "," + "dc=" + sDomainLC)) {
+    else if(sBaseObjectLC.endsWith("," + sOU_UTENTI + "," + "dc=" + sDomainLC)) {
       if(iScope == 0) {
         if(boNoAttributes) {
           if(existUtente(Utils.getFirstName(sBaseObject), _sDomain)) {
@@ -469,12 +461,10 @@ class DummyLDAPSession extends ALDAPSession
     if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("bianchi")) {
       listResult.add("admin");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
       listResult.add("oper");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
       listResult.add("guest");
     }
     return listResult;
@@ -498,12 +488,10 @@ class DummyLDAPSession extends ALDAPSession
     if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("bianchi")) {
       listResult.add("ST");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
       listResult.add("HD");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
       listResult.add("CC");
     }
     return listResult;
@@ -528,12 +516,10 @@ class DummyLDAPSession extends ALDAPSession
     if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("bianchi")) {
       listResult.add("create");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
       listResult.add("write");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
       listResult.add("read");
     }
     return listResult;
@@ -565,12 +551,10 @@ class DummyLDAPSession extends ALDAPSession
     if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("bianchi")) {
       listResult.add("direzione,cn=azienda");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
       listResult.add("sviluppo,cn=azienda");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
       listResult.add("callcenter,cn=azienda");
     }
     return listResult;
@@ -607,16 +591,13 @@ class DummyLDAPSession extends ALDAPSession
     if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("bianchi")) {
       listResult.add("bianchi");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("rossi")) {
       listResult.add("rossi");
     }
-    else
-    if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
+    else if(sIdCredenziale != null && sIdCredenziale.equalsIgnoreCase("verdi")) {
       listResult.add("verdi");
     }
-    else 
-    if(sFiltroUtenti == null || sFiltroUtenti.length() == 0) {
+    else if(sFiltroUtenti == null || sFiltroUtenti.length() == 0) {
       listResult.add("bianchi");
       listResult.add("rossi");
       listResult.add("verdi");
@@ -751,12 +732,10 @@ class DummyLDAPSession extends ALDAPSession
     if(sIdCredenziale.equalsIgnoreCase("bianchi")) {
       return readBianchi(sIdCredenziale, sIdServizio, listAttributes);
     }
-    else
-    if(sIdCredenziale.equalsIgnoreCase("rossi")) {
+    else if(sIdCredenziale.equalsIgnoreCase("rossi")) {
       return readRossi(sIdCredenziale, sIdServizio, listAttributes);
     }
-    else
-    if(sIdCredenziale.equalsIgnoreCase("verdi")) {
+    else if(sIdCredenziale.equalsIgnoreCase("verdi")) {
       return readVerdi(sIdCredenziale, sIdServizio, listAttributes);
     }
     return null;

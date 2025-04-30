@@ -1,8 +1,16 @@
 package org.dew.ldap;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import java.net.URL;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 public 
@@ -217,10 +225,10 @@ class BER implements ILDAPConstants
               iBytes++;
             }
           }
-          listResult.add(new Integer(iValue));
+          listResult.add(iValue);
           break;
         case LBER_BOOLEAN:
-          listResult.add(new Boolean(inputStream.read() != 0));
+          listResult.add(inputStream.read() != 0);
           iBytes++;
           break;
         case LBER_BITSTRING:

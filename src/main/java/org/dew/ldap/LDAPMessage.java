@@ -1,6 +1,7 @@
 package org.dew.ldap;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public 
 class LDAPMessage 

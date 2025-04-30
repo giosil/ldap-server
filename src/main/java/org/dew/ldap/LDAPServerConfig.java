@@ -1,10 +1,16 @@
 package org.dew.ldap;
 
-import java.util.*;
-import java.io.*;
-import java.net.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+
+import java.net.URL;
 
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.Properties;
 
 public
 class LDAPServerConfig
@@ -135,7 +141,12 @@ class LDAPServerConfig
   {
     String sValue = (String) config.get(sKey);
     if(sValue == null) return oDefault;
-    int iDate = (new Integer(sValue)).intValue();
+    int iDate = 0;
+    try {
+      iDate = Integer.parseInt(sValue);
+    }
+    catch(Exception ex) {
+    }
     if(iDate > 0){
       int iYear  = iDate / 10000;
       int iMonth = (iDate % 10000) / 100;
@@ -159,15 +170,25 @@ class LDAPServerConfig
   int getIntProperty(String sKey, int iDefault)
   {
     String sValue = (String) config.get(sKey);
-    if(sValue == null) return iDefault;
-    return (new Integer(sValue)).intValue();
+    if(sValue == null || sValue.length() == 0) return iDefault;
+    try {
+      return Integer.parseInt(sValue);
+    }
+    catch(Exception ex) {
+    }
+    return iDefault;
   }
   
   public static
   double getDoubleProperty(String sKey, double dDefault)
   {
     String sValue = (String) config.get(sKey);
-    if(sValue == null) return dDefault;
-    return (new Double(sValue)).doubleValue();
+    if(sValue == null || sValue.length() == 0) return dDefault;
+    try {
+      return Double.parseDouble(sValue);
+    }
+    catch(Exception ex) {
+    }
+    return dDefault;
   }
 }

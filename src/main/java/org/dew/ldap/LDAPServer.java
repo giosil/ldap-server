@@ -1,16 +1,23 @@
 package org.dew.ldap;
 
 import java.io.File;
-import java.net.*;
 
-import java.util.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.naming.Context;
 import javax.naming.ldap.InitialLdapContext;
+
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLServerSocketFactory;
-
-import java.util.logging.*;
 
 public 
 class LDAPServer extends Thread
